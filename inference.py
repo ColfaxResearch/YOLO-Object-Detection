@@ -1,7 +1,7 @@
 #!/opt/intel/intelpython2/bin/python
 import numpy as np
 import tensorflow as tf
-from model import TINY_YOLO as yolo
+from yolo_model import TINY_YOLO as yolo
 #from model_tf_nchw import TINY_YOLO as yolo
 import cv2
 from matplotlib import pyplot as plt
