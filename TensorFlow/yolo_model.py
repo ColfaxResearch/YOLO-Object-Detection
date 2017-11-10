@@ -17,7 +17,7 @@ class TINY_YOLO:
             self.load_params(sess)        
 
     def add_placeholder(self):
-        self.input_placeholder = tf.placeholder(tf.float32,[1,416,416,3])
+        self.input_placeholder = tf.placeholder(tf.float32,[None,416,416,3])
 
 
     def create_feed_dict(self,image):
@@ -168,7 +168,6 @@ class TINY_YOLO:
             kernel=tf.Variable(tf.truncated_normal([1,1,1024,125],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
             biases = tf.Variable(tf.constant(0.0,shape=[125],dtype=tf.float32),trainable=trainable,name='biases')
             conv = tf.nn.conv2d(self.conv8,kernel,[1,1,1,1],padding='VALID')
-            #out = tf.nn.bias_add(conv,biases)
             self.conv9 = tf.nn.bias_add(conv,biases)
             box_preds = self.conv9
             self.weights +=[kernel]
@@ -182,39 +181,33 @@ class TINY_YOLO:
         global anchors
         global cl_name
 
-        bx_preds= tf.reshape(box_preds,[13,13,5,25])
+        bx_preds= tf.reshape(box_preds,[-1,13,13,5,25])
         self.bx_preds = bx_preds
-        confs = tf.sigmoid(bx_preds[:,:,:,4])
-        class_probs =tf.nn.softmax(bx_preds[:,:,:,5:25])
-        max_class =tf.reduce_max(class_probs,axis=3)*confs
-        max_idx =tf.argmax(class_probs,axis=3)
+        confs = tf.sigmoid(bx_preds[:,:,:,:,4])
+        class_probs =tf.nn.softmax(bx_preds[:,:,:,:,5:25])
+        max_class =tf.reduce_max(class_probs,axis=4)*confs
+        max_idx =tf.argmax(class_probs,axis=4)
 
         indices = tf.where(max_class>0.20)
         class_names =tf.gather(cl_name,tf.gather_nd(max_idx,indices))
         scores = tf.gather_nd(max_class,indices)
         
-        tx = tf.gather_nd(bx_preds[:,:,:,0],indices)
-        ty = tf.gather_nd(bx_preds[:,:,:,1],indices)
-        tw = tf.gather_nd(bx_preds[:,:,:,2],indices)
-        th = tf.gather_nd(bx_preds[:,:,:,3],indices)
-        indices = tf.transpose(indices)
-        x = (tf.cast(indices[1],tf.float32) + tf.sigmoid(tx))*32.0
-        y = (tf.cast(indices[0],tf.float32) + tf.sigmoid(ty))*32.0
-        w = tf.exp(tw)*tf.gather(anchors,2*indices[2])*16.0
-        h = tf.exp(th)*tf.gather(anchors,2*indices[2]+1)*16.0
+        tx = tf.gather_nd(bx_preds[:,:,:,:,0],indices)
+        ty = tf.gather_nd(bx_preds[:,:,:,:,1],indices)
+        tw = tf.gather_nd(bx_preds[:,:,:,:,2],indices)
+        th = tf.gather_nd(bx_preds[:,:,:,:,3],indices)
+        batch_addr = indices[:,0]
+        x = (tf.cast(indices[:,2],tf.float32) + tf.sigmoid(tx))*32.0
+        y = (tf.cast(indices[:,1],tf.float32) + tf.sigmoid(ty))*32.0
+        w = tf.exp(tw)*tf.gather(anchors,2*indices[:,3])*16.0
+        h = tf.exp(th)*tf.gather(anchors,2*indices[:,3]+1)*16.0
         x1=x-w
         x2=x+w
         y1=y-h
         y2=y+h
-        #w = tf.exp(tw)*tf.gather(anchors,2*indices[2])*32.0
-        #h = tf.exp(th)*tf.gather(anchors,2*indices[2]+1)*32.0
-        #x1=x-w/2
-        #x2=x+w/2
-        #y1=y-h/2
-        #y2=y+h/2
         boxes = tf.stack([x1,y1,x2,y2],axis=1)
         indices = tf.image.non_max_suppression(boxes,scores,10,iou_threshold=0.3)
-        preds={'boxes':boxes,'indices':indices,'class_names':class_names}
+        preds={'batch_addr':batch_addr, 'boxes':boxes,'indices':indices,'class_names':class_names}
         return preds
 
 
