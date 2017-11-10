@@ -7,12 +7,7 @@ from matplotlib import pyplot as plt
 import time
 import os, sys
 
-
-
 color={"aeroplane":(0,0,255), "bicycle":(0,255,0), "bird":(127,127,127), "boat":(127,0,127), "bottle":(127,127,0),"bus":(0,127,127), "car":(0,255,0), "cat":(0,0,255),"chair":(180,180,0), "cow":(0,180,180), "diningtable":(180,0,180), "dog":(100,0,100), "horse":(0,0,255), "motorbike":(0,100,100), "person":(0,255,255), "pottedplant":(100,100,0), "sheep":(80,80,80), "sofa":(90,150,0), "train":(0,150,100), "tvmonitor":(100,150,0) }
-
-    
-    
     
 def draw_boxes(img2,box_preds):
     boxes =box_preds['boxes']
@@ -24,8 +19,6 @@ def draw_boxes(img2,box_preds):
     for i,b in enumerate(boxes):
         left = int(max(0,b[0]))
         bot  = int(max(0,b[1]))
-        #right= int(min(311,b[2]*0.75))
-        #top  = int(min(311,b[3]*0.75))
         right= int(min(415,b[2]))
         top  = int(min(415,b[3]))
         name = class_names[i]
@@ -48,7 +41,6 @@ with tf.Graph().as_default():
     
     
     #cam = cv2.VideoCapture(0)     
-    
     #cam = cv2.VideoCapture('road.avi')     
     videofile = sys.argv[1]
     cam=cv2.VideoCapture(videofile)
@@ -89,7 +81,7 @@ with tf.Graph().as_default():
             draw_boxes(img2,box_preds)
             img2=cv2.resize(img2,(312,312))
             cv2.putText(img2, '%.1f fps' % (fps), (2,15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2);
-            cv2.imshow('frame',img2)
+            #cv2.imshow('frame',img2)
             if cv2.waitKey(1) == 27:
                 break
             t4=time.time()

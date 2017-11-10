@@ -1,5 +1,6 @@
 import tensorflow as tf 
 import numpy as np
+from abc import ABCMeta, abstractmethod
 
 CNHW =[[16,3,3,3],[32,3,3,16],[64,3,3,32],[128,3,3,64],[256,3,3,128],[512,3,3,256],[1024,3,3,512],[1024,3,3,1024],[125,1,1,1024]]
 
@@ -7,14 +8,24 @@ anchors = np.array([1.08,1.19,3.42,4.41,6.63,11.38,9.42,5.11,16.62,10.52],dtype=
 cl_name=np.array(["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"])
 
 
+#class YOLO_MODEL:
+#    def __init__(self,sess=None):
+#        self.add_placeholder()
+#        self.box_preds=self.convlayers()
+#        self.preds = self.get_boxes(self.box_preds)
+#        if sess is not None:
+#            self.load_params(sess)        
+#
+#    def leaky_activation(self,input_layer):
+#        return tf.maximum(input_layer,tf.scalar_mul(0.1,input_layer))
+#        #return tf.nn.leaky_relu(input_layer,alpha=0.1)
+
 class TINY_YOLO:
 
     def __init__(self,sess=None):
         self.add_placeholder()
         self.box_preds=self.convlayers()
         self.preds = self.get_boxes(self.box_preds)
-        if sess is not None:
-            self.load_params(sess)        
 
     def add_placeholder(self):
         self.input_placeholder = tf.placeholder(tf.float32,[None,416,416,3])
@@ -26,153 +37,110 @@ class TINY_YOLO:
 
         return feed_dict
 
-    def load_params(self,sess):
-        
-        global CNHW
-
-        print ""
-        print ""
-        print "Initializing TF graph.."
-        print ""
-        print "Loading Weights.."
-        print ""
-
-        for i in xrange(9):
-            wfile = 'parameters/conv'+str(i+1)+'_W.bin'
-            w = np.fromfile(wfile,dtype='float32')
-            shape = CNHW[i]
-            w = np.transpose(w.reshape(shape),(1,2,3,0))
-            sess.run(self.weights[i].assign(w))
-            temp=sess.run(self.weights[i])
-            val = np.sum(temp-w)
-            if(val!=0):
-                print ">> Error loading param[weight]"+str(i)
-                assert False
-        
-        print "Loading Biases.."
-        print ""
-        for i in xrange(9):
-            bfile = 'parameters/conv'+str(i+1)+'_b.bin'
-            b = np.fromfile(bfile,dtype='float32')
-            sess.run(self.biases[i].assign(b))
-            temp=sess.run(self.biases[i])
-            val = np.sum(temp-b)
-            if(val!=0):
-                print ">> Error loading param[bias]"+str(i)
-                assert False
-        
-        print ""
-        print "Initialization sucessfull.."
-        print ""
-        print ""
-
-
     def leaky_activation(self,input_layer):
         return tf.maximum(input_layer,tf.scalar_mul(0.1,input_layer))
         #return tf.nn.leaky_relu(input_layer,alpha=0.1)
 
-    def preprocess_image(self, image):
-        return tf.image.flip_left_right(tf.image.resize_images(image, [416,416]))
-
     def convlayers(self, trainable=False):
-        self.weights=[]
-        self.biases =[]
-
-        #conv1
-        with tf.name_scope('conv1') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,3,16],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[16],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.input_placeholder,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv1 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-
-        self.pool1 = tf.nn.max_pool(self.conv1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool1')
-
-        with tf.name_scope('conv2') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,16,32],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[32],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.pool1,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv2 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-        self.pool2 = tf.nn.max_pool(self.conv2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool2')
-        
-        with tf.name_scope('conv3') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,32,64],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[64],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.pool2,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv3 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-        self.pool3 = tf.nn.max_pool(self.conv3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool3')
-
-        with tf.name_scope('conv4') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,64,128],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[128],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.pool3,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv4 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-        self.pool4 = tf.nn.max_pool(self.conv4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool4')
-
-        with tf.name_scope('conv5') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,128,256],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[256],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.pool4,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv5 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-        self.pool5 = tf.nn.max_pool(self.conv5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool5')
-
-        with tf.name_scope('conv6') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,256,512],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[512],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.pool5,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv6 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-        self.pool6 = tf.nn.max_pool(self.conv6,ksize=[1,2,2,1],strides=[1,1,1,1],padding='SAME',name='pool6')
-
-        with tf.name_scope('conv7') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,512,1024],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[1024],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.pool6,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv7 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-
-        with tf.name_scope('conv8') as scope:
-            kernel=tf.Variable(tf.truncated_normal([3,3,1024,1024],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[1024],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.conv7,kernel,[1,1,1,1],padding='SAME')
-            out = tf.nn.bias_add(conv,biases)
-            self.conv8 = self.leaky_activation(out)
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
-        with tf.name_scope('conv9') as scope:
-            kernel=tf.Variable(tf.truncated_normal([1,1,1024,125],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
-            biases = tf.Variable(tf.constant(0.0,shape=[125],dtype=tf.float32),trainable=trainable,name='biases')
-            conv = tf.nn.conv2d(self.conv8,kernel,[1,1,1,1],padding='VALID')
-            self.conv9 = tf.nn.bias_add(conv,biases)
-            box_preds = self.conv9
-            self.weights +=[kernel]
-            self.biases +=[biases]
-        
+        with tf.name_scope('tinyyolo') as scope:
+          self.weights=[]
+          self.biases =[]
+  
+          #conv1
+          with tf.name_scope('conv1') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,3,16],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[16],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.input_placeholder,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv1 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+  
+          self.pool1 = tf.nn.max_pool(self.conv1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool1')
+  
+          with tf.name_scope('conv2') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,16,32],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[32],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.pool1,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv2 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+          self.pool2 = tf.nn.max_pool(self.conv2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool2')
+          
+          with tf.name_scope('conv3') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,32,64],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[64],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.pool2,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv3 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+          self.pool3 = tf.nn.max_pool(self.conv3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool3')
+  
+          with tf.name_scope('conv4') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,64,128],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[128],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.pool3,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv4 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+          self.pool4 = tf.nn.max_pool(self.conv4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool4')
+  
+          with tf.name_scope('conv5') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,128,256],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[256],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.pool4,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv5 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+          self.pool5 = tf.nn.max_pool(self.conv5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID',name='pool5')
+  
+          with tf.name_scope('conv6') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,256,512],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[512],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.pool5,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv6 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+          self.pool6 = tf.nn.max_pool(self.conv6,ksize=[1,2,2,1],strides=[1,1,1,1],padding='SAME',name='pool6')
+  
+          with tf.name_scope('conv7') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,512,1024],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[1024],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.pool6,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv7 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+  
+          with tf.name_scope('conv8') as scope:
+              kernel=tf.Variable(tf.truncated_normal([3,3,1024,1024],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[1024],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.conv7,kernel,[1,1,1,1],padding='SAME')
+              out = tf.nn.bias_add(conv,biases)
+              self.conv8 = self.leaky_activation(out)
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
+          with tf.name_scope('conv9') as scope:
+              kernel=tf.Variable(tf.truncated_normal([1,1,1024,125],dtype=tf.float32,stddev=1e-1),name='weights',trainable=trainable)
+              biases = tf.Variable(tf.constant(0.0,shape=[125],dtype=tf.float32),trainable=trainable,name='biases')
+              conv = tf.nn.conv2d(self.conv8,kernel,[1,1,1,1],padding='VALID')
+              self.conv9 = tf.nn.bias_add(conv,biases)
+              box_preds = self.conv9
+              self.weights +=[kernel]
+              self.biases +=[biases]
+          
         return box_preds
 
 
