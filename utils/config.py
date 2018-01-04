@@ -87,6 +87,7 @@ if __name__=="__main__":
     #weight file paths on the darknet website
     tiny_yolo_path = 'https://pjreddie.com/media/files/tiny-yolo-voc.weights'
     yolov2_path ='https://pjreddie.com/media/files/yolo-voc.weights'
+    os.system('mkdir ckpt')
     obj=ConvertWeights(nets,tiny_yolo_path,yolov2_path)
     obj.run()
 
