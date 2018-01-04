@@ -30,6 +30,6 @@ Steps to use this code:
   
   
   
-Please refer the paper mentioned above to know more about system used for testing and versions of the software tools used.  
+Please refer the paper mentioned above to know more about the system used for testing and the versions of software tools used.  
 
   
