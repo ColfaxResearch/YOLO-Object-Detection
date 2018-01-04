@@ -20,12 +20,16 @@ Steps to use this code:
    this downloads the darknet weigh files. Also, fuses batchnorm layers and creates TensorFlow Ckpt files.  
 
 2) To run image inference:  
-   $ python inference.py , to run TinyYolo model  
-   $ python inference.py --image= [your image file or uses the default if not provided]  
-   $ python infernce.py --v2 , to run YoloV2 model  
-   $ NUM_INTER_THREADS=2 NUM_INTRA_THREADS=8 python inference.py  --par , to run parallel TensorFlow session(Inter/Intra op threads), if it is supported in your system.  
+   $ python inference.py ,       to run TinyYolo model  
+   $ python inference.py --image= [image path]  
+   $ python infernce.py --v2 ,   to run YoloV2 model  
+   $ NUM_INTER_THREADS=2 NUM_INTRA_THREADS=8 python inference.py  --par ,    to run parallel TensorFlow session(Inter/Intra op threads), if it is supported in your system.  
   
-     
+3) To run Webcam inference:  
+   $ python webcam_inference.py    
+  
+  
+  
 Please refer the paper mentioned above to know more about system used for testing and versions of the software tools used.  
 
   
