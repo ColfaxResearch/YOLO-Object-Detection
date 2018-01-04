@@ -17,7 +17,7 @@ Steps to use this code:
 
 1) Go to utils/ and run:   
    $ `python config.py`   
-   this downloads the darknet weigh files. Also, fuses batchnorm layers and creates TensorFlow Ckpt files.  
+   this downloads the darknet weight files. Also, fuses batchnorm layers and creates TensorFlow Ckpt files.  
 
 2) To run image inference:  
    $ `python inference.py` ,       to run TinyYolo model  
