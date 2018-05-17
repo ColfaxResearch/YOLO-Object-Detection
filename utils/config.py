@@ -3,9 +3,22 @@ import os
 from net_description import nets 
 import tensorflow as tf
 import sys
+import glob
 
 sys.path.insert(0,'..')
 from yolo_model import YOLO
+
+def join_files(in_dir,fname):
+    flist=glob.glob(in_dir+"/*")
+    fout=open(fname,'wb')
+    for i in range(len(flist)):
+        fn= in_dir+"/file%s" % i
+        fin=open(fn,'rb')
+        fout.write(fin.read())
+        fin.close()
+
+    fout.close()
+    return fname
 
 
 class ConvertWeights:
@@ -85,8 +98,8 @@ class ConvertWeights:
 if __name__=="__main__":
 
     #weight file paths on the darknet website
-    tiny_yolo_path = 'https://pjreddie.com/media/files/tiny-yolo-voc.weights'
-    yolov2_path ='https://pjreddie.com/media/files/yolo-voc.weights'
+    tiny_yolo_path=join_files("weights/tiny-yolo","tiny-yolo-voc.weights")
+    yolov2_path=join_files("weights/yolo-v2","yolo-voc.weights")
     os.system('mkdir ckpt')
     obj=ConvertWeights(nets,tiny_yolo_path,yolov2_path)
     obj.run()
